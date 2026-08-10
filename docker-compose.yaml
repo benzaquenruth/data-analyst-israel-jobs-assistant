@@ -1,0 +1,43 @@
+# Starts both Streamlit pieces together: the user-facing app and our
+# monitoring dashboard. Unlike the course version of this file, there's no
+# postgres/grafana service here - this project stores everything (the job
+# search index and the monitoring data) in SQLite files on disk instead of
+# a database server, so those files just get shared between the two
+# containers via volumes below, rather than living in their own service.
+#
+# Before running `docker-compose up`, those SQLite files need to already
+# exist on disk (run once from the project root):
+#   uv run python ingest.py    # builds jobs.db + the vector index from rag_jobs.csv
+#   uv run python db_init.py   # creates monitoring.db
+services:
+  # the app users actually talk to (ask a question, get an answer)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    ports:
+      - "8501:8501"
+    # mount the SQLite files/folder created by ingest.py and db_init.py into
+    # the container, so the app reads/writes the same files as on the host
+    volumes:
+      - ./jobs.db:/app/jobs.db
+      - ./monitoring.db:/app/monitoring.db
+      - ./data:/app/data
+
+  # our monitoring dashboard (not Grafana) - reads monitoring.db, doesn't
+  # call the LLM, so it doesn't need OPENAI_API_KEY
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # same image as `app`, just run dashboard.py instead of the default
+    # app.py, on its own port so both can run at once
+    command: ["streamlit", "run", "dashboard.py", "--server.port=8502", "--server.address=0.0.0.0"]
+    ports:
+      - "8502:8502"
+    volumes:
+      - ./jobs.db:/app/jobs.db
+      - ./monitoring.db:/app/monitoring.db
+      - ./data:/app/data
