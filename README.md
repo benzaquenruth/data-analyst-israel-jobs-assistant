@@ -61,18 +61,69 @@ The assistant runs at http://localhost:8501, and the monitoring dashboard at htt
 
 When you ask a question, the assistant (`rag_helper.py`) runs both searches and combines their results with reciprocal rank fusion (hybrid search), then passes the best-matching job postings to an LLM, which writes the final answer.
 
+## From where the data comes from?
+
+I extracted the job postings myself from the internet and processed them
+with a pipeline I built. This pipeline is part of a bigger project, and
+you're welcome to take a look at it here: [data_analyst_job_seeker_automation](https://github.com/benzaquenruth/data_analyst_job_seeker_automation).
+
+[`rag_jobs.csv`](rag_jobs.csv) is the full dataset. If you want to see what
+the data looks like, check [`rag_jobs_sample.csv`](rag_jobs_sample.csv),
+which has a sample of 100 rows (job descriptions truncated for readability)
+and renders as a table right here on GitHub.
+
 ## Evaluation
 
-Retrieval was evaluated on 25 ground-truth question/job pairs (`data/ground_truth.csv`), comparing keyword-only search against hybrid search:
+Retrieval was evaluated on 25 ground-truth question/job pairs (`data/ground_truth.csv`).
 
-| Search type | Hit rate | MRR |
-|---|---|---|
-| Keyword-only | 0.28 | 0.159 |
-| Hybrid (keyword + vector) | 0.76 | 0.435 |
+### Conclusion: keyword search vs. hybrid search
 
-Hybrid search nearly triples retrieval quality, so it's what the app uses in production.
+We compared three retrieval setups on the same 25 ground-truth questions:
 
-The final answers were also scored by an LLM-as-a-judge for relevance: 23 out of 25 were rated "good" with the tuned search weights, up from 19/25 with the original weights. Full evaluation details are in `04-evaluation-notebook.ipynb`.
+| Search method | boost_dict | hit_rate | mrr |
+|---|---|---|---|
+| Keyword only | `{"Title": 3.0, "skills": 0.5}` | 0.28 | 0.159 |
+| Keyword only (production weights) | `{"skills": 4.0, "Title": 3.0, "Job_Description": 3.0}` | 0.28 | 0.159 |
+| **Hybrid (keyword + vector)** | `{"skills": 4.0, "Title": 3.0, "Job_Description": 3.0}` | **0.76** | **0.435** |
+
+**Keyword search alone is weak here.** Only 28% of the time did it return the
+correct job in the top 5 — and changing which fields get boosted didn't
+meaningfully help. That's expected: our ground-truth questions were written
+to avoid reusing the listing's exact words (to mimic how people actually
+search), which is exactly the kind of paraphrasing keyword search struggles
+with.
+
+**Hybrid search fixes most of that.** Adding vector search on top of keyword
+search almost triples the hit rate (0.28 → 0.76) and nearly triples the MRR
+(0.159 → 0.435). This makes sense: vector search matches on *meaning*, not
+exact words, so it can find the right job even when the question doesn't
+share vocabulary with the listing.
+
+**Takeaway:** hybrid search is clearly the right choice for this assistant,
+confirming the current production setup (`RAGBase.rag()` already uses
+`hybrid_search()`, not keyword search alone).
+
+**Caveat:** these numbers come from a small sample — 25 questions generated
+from just 5 job listings. They show a clear direction, not a precise,
+final score. Worth re-running on a larger ground-truth sample before citing
+these numbers as final.
+
+### LLM-as-a-judge evaluation
+
+Beyond retrieval metrics, we also scored the assistant's final answers with
+an LLM-as-a-judge, run twice against the same 25 questions — once for each
+boost_dict — to see whether the retrieval tuning above actually improved the
+answers a user receives, not just the search hit rate:
+
+| boost_dict | good answers |
+|---|---|
+| `{"Title": 3.0, "skills": 0.5}` | 19/25 |
+| **`{"skills": 4.0, "Title": 3.0, "Job_Description": 3.0}`** | **23/25** |
+
+The tuned weights produced more "good" answers (23/25) than the original
+weights (19/25), so we chose the tuned boost_dict for production — it's the
+same one used above in the hybrid search row, and it's what `RAGBase.rag()`
+uses today. For more details check the notebook [`04-evaluation-notebook.ipynb`](04-evaluation-notebook.ipynb) in the repository.
 
 ## Monitoring
 
