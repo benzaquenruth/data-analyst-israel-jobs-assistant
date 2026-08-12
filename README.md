@@ -1,4 +1,4 @@
-# Data Analyst Israel Jobs Assistant
+# Data Analyst Israel Jobs RAG Assistant
 
 A RAG (Retrieval-Augmented Generation) assistant that helps you find data analyst jobs in Israel. Built as the final project for the [LLM Zoomcamp](https://github.com/DataTalksClub/llm-zoomcamp) course.
 
