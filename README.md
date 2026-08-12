@@ -8,6 +8,9 @@ This project is built on top of real data analyst job postings scraped from Isra
 
 It's a job matching and recommendation assistant, not a statistics tool — it can find and explain relevant jobs, but it won't answer dataset-level questions like "how many jobs are open in Tel Aviv" or "what's the average salary."
 
+<img width="1672" height="941" alt="ChatGPT Image Aug 13, 2026, 02_55_34 AM" src="https://github.com/user-attachments/assets/8e0b3892-6505-41e7-b983-c70c68e83a55" />
+
+
 **Good questions to ask:**
 - "What data analyst jobs are available in Tel Aviv?"
 - "Find me a junior-level BI role that doesn't need SQL experience yet."
