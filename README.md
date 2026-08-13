@@ -126,7 +126,7 @@ answers a user receives, not just the search hit rate:
 The tuned weights produced more "good" answers (23/25) than the original
 weights (19/25), so we chose the tuned boost_dict for production — it's the
 same one used above in the hybrid search row, and it's what `RAGBase.rag()`
-uses today. For more details check the notebook [`04-evaluation-notebook.ipynb`](04-evaluation-notebook.ipynb) in the repository.
+uses today. For more details check the notebook [`04-evaluation-notebook.ipynb`](04-evaluation-notebook.ipynb) in the repository and the folder data - with all the documents generated during the evaluation.
 
 ## Monitoring
 
