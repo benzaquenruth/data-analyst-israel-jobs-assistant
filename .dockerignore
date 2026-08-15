@@ -1,0 +1,12 @@
+.venv/
+.git/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*.ipynb
+jobs.db
+*.db-shm
+*.db-wal
+monitoring.db
+data/
+massive-bliss-481811-d8-31685420abbe.json

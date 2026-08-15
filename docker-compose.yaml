@@ -5,11 +5,26 @@
 # a database server, so those files just get shared between the two
 # containers via volumes below, rather than living in their own service.
 #
-# Before running `docker-compose up`, those SQLite files need to already
-# exist on disk (run once from the project root):
-#   uv run python ingest.py    # builds jobs.db + the vector index from rag_jobs.csv
-#   uv run python db_init.py   # creates monitoring.db
+# `docker-compose up` builds everything it needs automatically. The
+# `ingest` service below rebuilds jobs.db, the vector index, and
+# monitoring.db before app/dashboard start. jobs.db and the vector index
+# each only actually rebuild if rag_jobs.csv changed since the last run
+# (see the hash checks in ingest.py) - so past the first run, this is a
+# free no-op. That first run does call the OpenAI embeddings API (needs
+# OPENAI_API_KEY in .env) to build the vector index baseline.
 services:
+  ingest:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["sh", "-c", "python ingest.py && python db_init.py"]
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./jobs.db:/app/jobs.db
+      - ./monitoring.db:/app/monitoring.db
+      - ./data:/app/data
+
   # the app users actually talk to (ask a question, get an answer)
   app:
     build:
@@ -19,6 +34,9 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     ports:
       - "8501:8501"
+    depends_on:
+      ingest:
+        condition: service_completed_successfully
     # mount the SQLite files/folder created by ingest.py and db_init.py into
     # the container, so the app reads/writes the same files as on the host
     volumes:
@@ -37,6 +55,9 @@ services:
     command: ["streamlit", "run", "dashboard.py", "--server.port=8502", "--server.address=0.0.0.0"]
     ports:
       - "8502:8502"
+    depends_on:
+      ingest:
+        condition: service_completed_successfully
     volumes:
       - ./jobs.db:/app/jobs.db
       - ./monitoring.db:/app/monitoring.db

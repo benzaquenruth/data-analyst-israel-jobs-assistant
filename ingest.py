@@ -3,7 +3,9 @@
 
 # job listings ingested from rag_jobs.csv (exported from BigQuery so anyone
 # cloning the repo can run the assistant without needing our BigQuery credentials)
+import hashlib
 import json
+import sqlite3
 import time
 from pathlib import Path
 
@@ -47,8 +49,7 @@ def load_jobs_data():
     return documents
 
 
-# reload the documents we already indexed, straight from jobs.db
-# useful so notebooks don't have to hit BigQuery again on every rerun
+# reload the documents we already indexed, straight from jobs.dbbnu
 def load_documents_from_db(db_path=DB_PATH):
     import sqlite3
 
@@ -59,8 +60,57 @@ def load_documents_from_db(db_path=DB_PATH):
     return [json.loads(row[0]) for row in rows]
 
 
-# create the sqlitesearch keyword index and save it to a .db file on disk
+# sqlitesearch's TextSearchIndex.add() does a plain INSERT (no id_field is
+# set below, so there's nothing to upsert on) - it just appends on top of
+# whatever's already in jobs.db. To make it safe to re-run ingest.py (e.g.
+# on every docker-compose up) without piling up duplicate rows, we track a
+# hash of rag_jobs.csv inside jobs.db itself and only rebuild when it
+# changes.
+def _csv_hash():
+    return hashlib.sha256(Path(CSV_PATH).read_bytes()).hexdigest()
+
+
+def _get_stored_csv_hash(db_path=DB_PATH):
+    if not Path(db_path).exists():
+        return None
+    conn = sqlite3.connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT value FROM ingest_meta WHERE key = 'csv_hash'"
+        ).fetchone()
+        return row[0] if row else None
+    except sqlite3.OperationalError:
+        # jobs.db exists but predates this tracking table
+        return None
+    finally:
+        conn.close()
+
+
+def _store_csv_hash(csv_hash, db_path=DB_PATH):
+    conn = sqlite3.connect(db_path)
+    conn.execute("CREATE TABLE IF NOT EXISTS ingest_meta (key TEXT PRIMARY KEY, value TEXT)")
+    conn.execute(
+        "INSERT INTO ingest_meta (key, value) VALUES ('csv_hash', ?) "
+        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (csv_hash,),
+    )
+    conn.commit()
+    conn.close()
+
+
+# create the sqlitesearch keyword index and save it to a .db file on disk.
+# Skips the rebuild if rag_jobs.csv hasn't changed since the last run.
 def build_keyword_index(documents):
+    csv_hash = _csv_hash()
+    if Path(DB_PATH).exists() and _get_stored_csv_hash() == csv_hash:
+        print("rag_jobs.csv hasn't changed, jobs.db is already up to date - skipping rebuild")
+        return
+
+    # dataset changed (or jobs.db doesn't exist / predates hash tracking) -
+    # wipe any existing index first so we rebuild from scratch, not append
+    for path in (DB_PATH, f"{DB_PATH}-shm", f"{DB_PATH}-wal"):
+        Path(path).unlink(missing_ok=True)
+
     index = TextSearchIndex(
         text_fields=TEXT_FIELDS,
         keyword_fields=KEYWORD_FIELDS,
@@ -70,10 +120,11 @@ def build_keyword_index(documents):
 
     for doc in documents:
         index.add(doc)
-    
-    print("Keyword index saved to jobs.db")
 
     index.close()
+
+    _store_csv_hash(csv_hash)
+    print("Keyword index saved to jobs.db")
 
 
 # with ~4,600 jobs to embed, we can burn through OpenAI's tokens-per-minute
@@ -95,8 +146,29 @@ def embed_with_retry(client, batch):
             time.sleep(wait)
 
 
-# embed each job with OpenAI and save the vectors + matching documents to disk
+# same idea as the jobs.db hash tracking above, but for the vector index:
+# a small sidecar file next to the embeddings holding the rag_jobs.csv hash
+# they were built from, so a re-run can tell whether it actually needs to
+# call OpenAI again.
+VECTOR_HASH_PATH = VECTOR_DIR / "csv_hash.txt"
+
+
+# embed each job with OpenAI and save the vectors + matching documents to
+# disk. Skips the (paid) embedding call if rag_jobs.csv hasn't changed
+# since the last run.
 def build_vector_index(documents):
+    csv_hash = _csv_hash()
+    if (
+        VECTOR_EMBEDDINGS_PATH.exists()
+        and VECTOR_DOCUMENTS_PATH.exists()
+        and VECTOR_HASH_PATH.exists()
+        and VECTOR_HASH_PATH.read_text().strip() == csv_hash
+    ):
+        print("rag_jobs.csv hasn't changed, vector index is already up to date - skipping rebuild")
+        return
+
+    # client is only created once we know we actually need to call OpenAI,
+    # so this never requires OPENAI_API_KEY to be set on a skipped run
     client = OpenAI()
 
     texts = [
@@ -116,11 +188,21 @@ def build_vector_index(documents):
     with open(VECTOR_DOCUMENTS_PATH, "w") as f:
         json.dump(documents, f)
 
-
-if __name__ == "__main__":
-    documents = load_jobs_data()
-    build_keyword_index(documents)
-    build_vector_index(documents)
-    
+    VECTOR_HASH_PATH.write_text(csv_hash)
     print(f"Vector embeddings saved to {VECTOR_EMBEDDINGS_PATH}")
     print(f"Vector documents saved to {VECTOR_DOCUMENTS_PATH}")
+
+
+if __name__ == "__main__":
+    import sys
+
+    documents = load_jobs_data()
+    build_keyword_index(documents)
+
+    # --keyword-only skips build_vector_index() entirely, e.g. for
+    # contributors without an OPENAI_API_KEY who just want the keyword
+    # index. Not needed by docker-compose's `ingest` service anymore -
+    # build_vector_index() now has its own hash check, so calling it
+    # unconditionally is a free no-op whenever rag_jobs.csv is unchanged.
+    if "--keyword-only" not in sys.argv:
+        build_vector_index(documents)

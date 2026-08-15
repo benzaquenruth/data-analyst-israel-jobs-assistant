@@ -32,21 +32,11 @@ The easiest way to run this project is with Docker Compose.
    OPENAI_API_KEY=your-key-here
    ```
 
-3. Install the Python dependencies (needed for the next step, which runs on your machine, not in Docker):
-   ```
-   uv sync
-   ```
-
-4. Build the search index and the monitoring database. This reads `rag_jobs.csv` (already included in the repo, no credentials needed) and only needs to be run once:
-   ```
-   uv run python ingest.py
-   uv run python db_init.py
-   ```
-
-5. Start the app and the dashboard:
+3. Start the app and the dashboard:
    ```
    docker-compose up
    ```
+   The keyword index (`jobs.db`) and vector index are already included in the repo, built from `rag_jobs.csv`, so this works out of the box at no cost. If you ever edit `rag_jobs.csv` yourself, the next `docker-compose up` rebuilds both automatically — the vector index rebuild calls the OpenAI embeddings API (a small cost); otherwise it's a free, fast no-op.
 
 The assistant runs at http://localhost:8501, and the monitoring dashboard at http://localhost:8502.
 
