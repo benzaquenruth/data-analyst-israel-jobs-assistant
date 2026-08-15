@@ -51,15 +51,15 @@ for question in example_questions:
         st.session_state["question"] = question
         selected_question = question
 
+# A single text box where the user types their question.
 user_input = st.text_input(
     "Ask about data analyst jobs in Israel:",
     key="question"
 )
 
 
-# A single text box where the user types their question.
-typed_question = st.text_input("Ask about data analyst jobs in Israel:")
-user_input = selected_question or typed_question
+# typed_question = st.text_input("Ask about data analyst jobs in Israel:")
+# user_input = selected_question or typed_question
 
 # The app only does anything once the user clicks "Ask".
 if selected_question or st.button("Ask"):
