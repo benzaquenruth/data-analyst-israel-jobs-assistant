@@ -118,12 +118,26 @@ st.bar_chart(feedback_counts)
 # spot-check what people are actually asking and what they got back.
 # Placed last, after all the charts — the charts are the "at a glance"
 # summary, this is the detail you scroll to if you want to dig in.
+# Each one is an expander: collapsed it just shows the question (click
+# to open), expanded it shows the full answer plus all the call details.
 st.subheader("Recent conversations")
 recent = get_conversations(limit=20)
 
 for c in recent:
     record = c["record"]
-    st.write(f"**{c['question'][:80]}**")
-    st.write(f"{record.answer[:200]}...")
-    st.write(f"Time: {record.response_time:.2f}s | Cost: ${record.cost:.4f}")
-    st.divider()
+    with st.expander(c["question"][:80]):
+        st.write("**Question**")
+        st.write(c["question"])
+        st.write("**Answer**")
+        st.write(record.answer)
+        st.write(
+            f"Time: {record.response_time:.2f}s | "
+            f"Cost: ${record.cost:.4f} | "
+            f"Model: {record.model}"
+        )
+        st.write(
+            f"Tokens — prompt: {record.prompt_tokens} | "
+            f"completion: {record.completion_tokens} | "
+            f"total: {record.total_tokens}"
+        )
+        st.write(f"Timestamp: {record.timestamp}")
