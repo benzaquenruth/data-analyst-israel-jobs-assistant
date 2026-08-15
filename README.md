@@ -2,6 +2,8 @@
 
 A RAG (Retrieval-Augmented Generation) assistant that helps you find data analyst jobs in Israel. Built as the final project for the [LLM Zoomcamp](https://github.com/DataTalksClub/llm-zoomcamp) course.
 
+:rocket: Live app: https://data-analyst-job-seeker-rag-assistant.streamlit.app/
+
 ## What this is
 
 This project is built on top of real data analyst job postings scraped from Israel (LinkedIn, Indeed). Instead of scrolling through job boards yourself, you ask a question in plain English, and the assistant searches through the job postings and recommends the ones that actually match, explaining why.
@@ -19,7 +21,7 @@ It's a job matching and recommendation assistant, not a statistics tool — it c
 
 ## Quickstart
 
-The easiest way to run this project is with Docker Compose.
+The easiest way to run this project by yourself is with Docker Compose.
 
 1. Clone the repo and go into it:
    ```
