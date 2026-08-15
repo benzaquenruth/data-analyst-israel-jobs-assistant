@@ -39,16 +39,22 @@ st.markdown("### Try one of these questions:")
 
 example_questions = [
     "What data analyst jobs are available in Tel Aviv?",
-    "Find me a junior-level BI role that doesn't need SQL experience yet.",
-    "Any remote data analyst jobs for someone with Python and Excel skills?",
-    "Show me product analytics jobs at tech companies in Herzliya.",
+    "Any remote data analyst jobs?",
+    "Best matches for a data / business analyst background",
+    "Best maches for someone with SQL and python skills"
 ]
 
 selected_question = None
 
 for question in example_questions:
     if st.button(question, use_container_width=True):
+        st.session_state["question"] = question
         selected_question = question
+
+user_input = st.text_input(
+    "Ask about data analyst jobs in Israel:",
+    key="question"
+)
 
 
 # A single text box where the user types their question.
@@ -56,7 +62,9 @@ typed_question = st.text_input("Ask about data analyst jobs in Israel:")
 user_input = selected_question or typed_question
 
 # The app only does anything once the user clicks "Ask".
-if st.button("Ask"):
+if selected_question or st.button("Ask"):
+    user_input = selected_question or user_input
+    
     with st.spinner("Searching job listings and thinking..."):
         # assistant.rag() is the full pipeline from rag_helper.py:
         # hybrid search (keyword + vector) -> build prompt -> call the LLM.
@@ -74,8 +82,12 @@ if st.button("Ask"):
     # the question, then save that verdict as a "judge" feedback row
     # linked to the conversation we just saved.
     relevance, explanation = evaluate_relevance(user_input, answer)
-    save_feedback(conversation_id, "judge",
-                  relevance=relevance, explanation=explanation)
+    save_feedback(
+            conversation_id,
+            "judge",
+            relevance=relevance,
+            explanation=explanation
+        )
 
     # Stash everything needed to redraw this answer on screen into
     # st.session_state, instead of just local variables. Streamlit
