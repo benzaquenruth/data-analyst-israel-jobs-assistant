@@ -27,10 +27,33 @@ from judge import evaluate_relevance
 # optimize it later with @st.cache_resource if it turns out to be slow.
 assistant = create_assistant()
 
-st.title("Data Analyst Jobs Assistant (Israel)")
+st.title("Data Analyst Job Seeker Assistant")
+
+st.markdown("""
+This project is built on top of real data analyst job postings scraped from Israel (LinkedIn, Indeed). Instead of scrolling through job boards yourself, you ask a question in plain English, and the assistant searches through the job postings and recommends the ones that actually match, explaining why.
+
+It's a job matching and recommendation assistant, not a statistics tool — it can find and explain relevant jobs, but it won't answer dataset-level questions like "how many jobs are open in Tel Aviv" or "what's the average salary."
+""")
+
+st.markdown("### Try one of these questions:")
+
+example_questions = [
+    "What data analyst jobs are available in Tel Aviv?",
+    "Find me a junior-level BI role that doesn't need SQL experience yet.",
+    "Any remote data analyst jobs for someone with Python and Excel skills?",
+    "Show me product analytics jobs at tech companies in Herzliya.",
+]
+
+selected_question = None
+
+for question in example_questions:
+    if st.button(question, use_container_width=True):
+        selected_question = question
+
 
 # A single text box where the user types their question.
-user_input = st.text_input("Ask about data analyst jobs in Israel:")
+typed_question = st.text_input("Ask about data analyst jobs in Israel:")
+user_input = selected_question or typed_question
 
 # The app only does anything once the user clicks "Ask".
 if st.button("Ask"):
@@ -80,12 +103,12 @@ if "last_answer" in st.session_state:
 
     st.success("Done!")
     st.write(st.session_state.last_answer)
-    st.write(f"Response time: {record.response_time:.2f}s")
-    st.write(f"Prompt tokens: {record.prompt_tokens}")
-    st.write(f"Completion tokens: {record.completion_tokens}")
-    st.write(f"Cost: ${record.cost:.4f}")
-    st.write(f"Judge relevance: {st.session_state.last_relevance}")
-    st.write(f"Judge explanation: {st.session_state.last_explanation}")
+    # st.write(f"Response time: {record.response_time:.2f}s")
+    # st.write(f"Prompt tokens: {record.prompt_tokens}")
+    # st.write(f"Completion tokens: {record.completion_tokens}")
+    # st.write(f"Cost: ${record.cost:.4f}")
+    # st.write(f"Judge relevance: {st.session_state.last_relevance}")
+    # st.write(f"Judge explanation: {st.session_state.last_explanation}")
 
 
 # These two buttons live outside both blocks above, so they stay on the
