@@ -20,6 +20,24 @@ from db_save import save_conversation
 from db_feedback import save_feedback
 from judge import evaluate_relevance
 
+
+# testing the conection between the app and the BigQuery client for Steamlit live app
+from bigquery_client import get_bigquery_client
+
+client = get_bigquery_client()
+
+query = """
+SELECT COUNT(*) AS total
+FROM `massive-bliss-481811-d8.rag_monitoring.conversations`
+"""
+
+result = client.query(query).result()
+row = next(result)
+
+st.write(f"✅ BigQuery connected! Conversations in BigQuery: {row.total}")
+
+
+
 # create_assistant() builds our RAG object (search index + OpenAI client).
 # Streamlit re-runs this whole script top-to-bottom every time the user
 # clicks something on the page, so this line runs again each time too —
@@ -46,6 +64,7 @@ example_questions = [
 
 selected_question = None
 
+# make each example question a button; if the user clicks one, save it in
 for question in example_questions:
     if st.button(question, use_container_width=True):
         st.session_state["question"] = question
@@ -57,11 +76,11 @@ user_input = st.text_input(
     key="question"
 )
 
-
+# This is the previus version of the text input, which we replaced with the one above.
 # typed_question = st.text_input("Ask about data analyst jobs in Israel:")
 # user_input = selected_question or typed_question
 
-# The app only does anything once the user clicks "Ask".
+# The app only does anything once the user clicks "Ask" or one of the example questions. 
 if selected_question or st.button("Ask"):
     user_input = selected_question or user_input
     
