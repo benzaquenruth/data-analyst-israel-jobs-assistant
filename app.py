@@ -21,20 +21,20 @@ from db_feedback import save_feedback
 from judge import evaluate_relevance
 
 
+
 # testing the conection between the app and the BigQuery client for Steamlit live app
-from bigquery_client import get_bigquery_client
+#from bigquery_client import get_bigquery_client
 
-client = get_bigquery_client()
+#client = get_bigquery_client()
 
-query = """
-SELECT COUNT(*) AS total
-FROM `massive-bliss-481811-d8.rag_monitoring.conversations`
-"""
+#query = """
+#SELECT COUNT(*) AS total
+#FROM `massive-bliss-481811-d8.rag_monitoring.conversations`
+#"""
 
-result = client.query(query).result()
-row = next(result)
-
-st.write(f"✅ BigQuery connected! Conversations in BigQuery: {row.total}")
+#result = client.query(query).result()
+#row = next(result)
+#st.write(f"✅ BigQuery connected! Conversations in BigQuery: {row.total}")
 
 
 
