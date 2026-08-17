@@ -15,6 +15,9 @@
 
 import streamlit as st
 import pandas as pd
+import altair as alt  # only used to flatten the sideways-tilted axis
+# labels on the two small bar charts below (st.bar_chart alone can't do
+# that) — altair ships with streamlit itself, so this isn't a new dependency
 
 from db_query import (
     get_conversations,
@@ -90,15 +93,23 @@ else:
 
 # --- Judge relevance distribution ---
 # get_relevance_stats() returns something like
-# {"RELEVANT": 8, "PARTLY_RELEVANT": 2} — st.bar_chart turns that
-# straight into a bar chart, one bar per relevance category.
+# {"RELEVANT": 8, "PARTLY_RELEVANT": 2} — turned into a small table with
+# one row per relevance category, then plotted as a bar per category.
 st.subheader("Judge relevance")
 relevance = get_relevance_stats()
 
 if relevance:
-    # horizontal=True flips the bars sideways so the category labels
-    # (RELEVANT, PARTLY_RELEVANT, ...) sit flat instead of rotated vertically.
-    st.bar_chart(relevance, horizontal=True)
+    relevance_df = pd.DataFrame(
+        {"relevance": list(relevance.keys()), "count": list(relevance.values())}
+    )
+    # axis(labelAngle=0) is the actual fix: it keeps the category names
+    # (RELEVANT, PARTLY_RELEVANT, ...) flat/horizontal instead of tilted —
+    # the bars themselves stay vertical, same as before.
+    chart = alt.Chart(relevance_df).mark_bar().encode(
+        x=alt.X("relevance", title=None, axis=alt.Axis(labelAngle=0)),
+        y=alt.Y("count", title=None),
+    )
+    st.altair_chart(chart, use_container_width=True)
 else:
     st.write("No judge feedback yet.")
 
@@ -116,12 +127,15 @@ col1.metric("👍 Thumbs up", thumbs_up)
 col2.metric("👎 Thumbs down", thumbs_down)
 
 feedback_counts = pd.DataFrame(
-    {"count": [thumbs_up, thumbs_down]},
-    index=["👍 Thumbs up", "👎 Thumbs down"],
+    {"feedback": ["👍 Thumbs up", "👎 Thumbs down"], "count": [thumbs_up, thumbs_down]}
 )
-# horizontal=True flips the bars sideways so the labels
-# (👍 Thumbs up, 👎 Thumbs down) sit flat instead of rotated vertically.
-st.bar_chart(feedback_counts, horizontal=True)
+# Same fix as the relevance chart above: axis(labelAngle=0) keeps the
+# "👍 Thumbs up" / "👎 Thumbs down" labels flat instead of tilted.
+chart = alt.Chart(feedback_counts).mark_bar().encode(
+    x=alt.X("feedback", title=None, axis=alt.Axis(labelAngle=0)),
+    y=alt.Y("count", title=None),
+)
+st.altair_chart(chart, use_container_width=True)
 
 
 # --- Recent conversations list ---
