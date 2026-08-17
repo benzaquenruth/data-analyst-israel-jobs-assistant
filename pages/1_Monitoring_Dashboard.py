@@ -25,6 +25,13 @@ from db_query import (
 
 st.title("Jobs Assistant — Monitoring Dashboard")
 
+# The 💡 link in app.py jumps straight to the "Recent conversations"
+# subheader below (#recent-conversations). Streamlit normally reserves
+# some empty space above every subheader (room for its hover-link icon),
+# which made that jump land well above the actual list. This removes
+# that reserved space so the jump lands right at the subheader instead.
+st.markdown("<style>h3 { scroll-margin-top: 0px; }</style>", unsafe_allow_html=True)
+
 # --- Summary numbers at the top ---
 # get_stats() gives us four headline numbers across ALL conversations
 # ever saved. st.columns(4) lays them out side by side, like a
@@ -89,7 +96,9 @@ st.subheader("Judge relevance")
 relevance = get_relevance_stats()
 
 if relevance:
-    st.bar_chart(relevance)
+    # horizontal=True flips the bars sideways so the category labels
+    # (RELEVANT, PARTLY_RELEVANT, ...) sit flat instead of rotated vertically.
+    st.bar_chart(relevance, horizontal=True)
 else:
     st.write("No judge feedback yet.")
 
@@ -110,7 +119,9 @@ feedback_counts = pd.DataFrame(
     {"count": [thumbs_up, thumbs_down]},
     index=["👍 Thumbs up", "👎 Thumbs down"],
 )
-st.bar_chart(feedback_counts)
+# horizontal=True flips the bars sideways so the labels
+# (👍 Thumbs up, 👎 Thumbs down) sit flat instead of rotated vertically.
+st.bar_chart(feedback_counts, horizontal=True)
 
 
 # --- Recent conversations list ---
@@ -120,7 +131,11 @@ st.bar_chart(feedback_counts)
 # summary, this is the detail you scroll to if you want to dig in.
 # Each one is an expander: collapsed it just shows the question (click
 # to open), expanded it shows the full answer plus all the call details.
-st.subheader("Recent conversations")
+# anchor="recent-conversations" pins this section's URL anchor explicitly,
+# instead of letting Streamlit auto-derive it from the title text above.
+# That's what the 💡 link in app.py jumps to — pinning it means renaming
+# this title again later won't silently break that link.
+st.subheader("Latest Q&As", anchor="recent-conversations")
 recent = get_conversations(limit=10)
 
 for c in recent:
