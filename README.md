@@ -4,24 +4,70 @@ A RAG (Retrieval-Augmented Generation) assistant that helps you find data analys
 
 :rocket: Live app: https://data-analyst-job-seeker-rag-assistant.streamlit.app/
 
-## What this is
+## What is this about? 🤔
 
-This project is built on top of real data analyst job postings scraped from Israel (LinkedIn, Indeed). Instead of scrolling through job boards yourself, you ask a question in plain English, and the assistant searches through the job postings and recommends the ones that actually match, explaining why.
+Curious what's happening in the Israeli data analyst job market? 👀  
+This assistant searches **real job postings from LinkedIn and Indeed**, collected daily through an automated [data pipeline](https://github.com/benzaquenruth/data_analyst_job_seeker_automation).
 
-It's a job matching and recommendation assistant, not a statistics tool — it can find and explain relevant jobs, but it won't answer dataset-level questions like "how many jobs are open in Tel Aviv" or "what's the average salary."
+📅 The current dataset covers jobs from **Feb 23, 2026 to Aug 6, 2026**.
+
+Ask about roles, skills, locations, seniority, or what jobs fit your background 🚀
+
+**It's a job-matching assistant, not a statistics tool!** it won't answer dataset-wide questions like *"How many jobs are open in Tel Aviv?"*
 
 <img width="1672" height="941" alt="ChatGPT Image Aug 13, 2026, 02_55_34 AM" src="https://github.com/user-attachments/assets/8e0b3892-6505-41e7-b983-c70c68e83a55" />
 
 
 **Good questions to ask:**
-- "What data analyst jobs are available in Tel Aviv?"
-- "Find me a junior-level BI role that doesn't need SQL experience yet."
-- "Any remote data analyst jobs for someone with Python and Excel skills?"
-- "Show me product analytics jobs at tech companies in Herzliya."
+- "Show me examples of positions someone with data engineering knowledge could apply for"
+- "What jobs would fit someone with experience in BigQuery, ETL pipelines, and data integration?"
+- "Best matches for a data / business analyst background"
+- "Best maches for someone with SQL and python skills"
+- "For financial analyst-related roles, what skills, tools, and experience are employers looking for?"
 
-## Quickstart
+## Live app vs. running it locally 🔀
+
+The assistant works the same way wherever you use it, but where the monitoring data (questions, answers, feedback) gets saved is different, depending on whether you're using the live app or your own local copy via Docker.
+
+**🌐 Live app (Streamlit Cloud)**
+```
+Open the live app
+        ↓
+You ask a question
+        ↓
+Conversation + feedback are saved
+to the shared BigQuery database
+        ↓
+Everyone sees the same
+live monitoring dashboard
+```
+
+**💻 Local / Docker**
+```
+Clone GitHub repository
+        ↓
+Gets monitoring.db
+with your existing sample conversations
+        ↓
+Run Docker
+        ↓
+Docker uses that local monitoring.db
+        ↓
+User asks new questions
+        ↓
+New conversations + feedback
+are added to THEIR local copy
+```
+
+## How to run it locally 💻
 
 The easiest way to run this project by yourself is with Docker Compose.
+
+### Prerequisites 🧰
+- Python 3.12
+- [uv](https://docs.astral.sh/uv/) for dependency management
+- Docker and Docker Compose
+- An OpenAI API key
 
 1. Clone the repo and go into it:
    ```
@@ -41,12 +87,6 @@ The easiest way to run this project by yourself is with Docker Compose.
    The keyword index (`jobs.db`) and vector index are already included in the repo, built from `rag_jobs.csv`, so this works out of the box at no cost. If you ever edit `rag_jobs.csv` yourself, the next `docker-compose up` rebuilds both automatically — the vector index rebuild calls the OpenAI embeddings API (a small cost); otherwise it's a free, fast no-op.
 
 The assistant runs at http://localhost:8501, and the monitoring dashboard at http://localhost:8502.
-
-## Prerequisites
-- Python 3.12
-- [uv](https://docs.astral.sh/uv/) for dependency management
-- Docker and Docker Compose
-- An OpenAI API key
 
 ## How it works
 
@@ -69,11 +109,9 @@ and renders as a table right here on GitHub.
 
 ## Evaluation
 
-Retrieval was evaluated on 25 ground-truth question/job pairs (`data/ground_truth.csv`).
+Tested on 25 ground-truth question/job pairs (`data/ground_truth.csv`).
 
-### Conclusion: keyword search vs. hybrid search
-
-We compared three retrieval setups on the same 25 ground-truth questions:
+### 🔍 Retrieval: keyword vs. hybrid search
 
 | Search method | boost_dict | hit_rate | mrr |
 |---|---|---|---|
@@ -81,53 +119,76 @@ We compared three retrieval setups on the same 25 ground-truth questions:
 | Keyword only (production weights) | `{"skills": 4.0, "Title": 3.0, "Job_Description": 3.0}` | 0.28 | 0.159 |
 | **Hybrid (keyword + vector)** | `{"skills": 4.0, "Title": 3.0, "Job_Description": 3.0}` | **0.76** | **0.435** |
 
-**Keyword search alone is weak here.** Only 28% of the time did it return the
-correct job in the top 5 — and changing which fields get boosted didn't
-meaningfully help. That's expected: our ground-truth questions were written
-to avoid reusing the listing's exact words (to mimic how people actually
-search), which is exactly the kind of paraphrasing keyword search struggles
-with.
+Keyword search alone struggles with paraphrased questions — it only found the right job 28% of the time. Adding vector search nearly triples both metrics, so hybrid search is what the app uses in production.
 
-**Hybrid search fixes most of that.** Adding vector search on top of keyword
-search almost triples the hit rate (0.28 → 0.76) and nearly triples the MRR
-(0.159 → 0.435). This makes sense: vector search matches on *meaning*, not
-exact words, so it can find the right job even when the question doesn't
-share vocabulary with the listing.
+*Small sample (25 questions, 5 listings) — a clear signal, not a final benchmark.*
 
-**Takeaway:** hybrid search is clearly the right choice for this assistant,
-confirming the current production setup (`RAGBase.rag()` already uses
-`hybrid_search()`, not keyword search alone).
-
-**Caveat:** these numbers come from a small sample — 25 questions generated
-from just 5 job listings. They show a clear direction, not a precise,
-final score. Worth re-running on a larger ground-truth sample before citing
-these numbers as final.
-
-### LLM-as-a-judge evaluation
-
-Beyond retrieval metrics, we also scored the assistant's final answers with
-an LLM-as-a-judge, run twice against the same 25 questions — once for each
-boost_dict — to see whether the retrieval tuning above actually improved the
-answers a user receives, not just the search hit rate:
+### ⚖️ Answer quality: LLM-as-a-judge
 
 | boost_dict | good answers |
 |---|---|
 | `{"Title": 3.0, "skills": 0.5}` | 19/25 |
 | **`{"skills": 4.0, "Title": 3.0, "Job_Description": 3.0}`** | **23/25** |
 
-The tuned weights produced more "good" answers (23/25) than the original
-weights (19/25), so we chose the tuned boost_dict for production — it's the
-same one used above in the hybrid search row, and it's what `RAGBase.rag()`
-uses today. For more details check the notebook [`04-evaluation-notebook.ipynb`](04-evaluation-notebook.ipynb) in the repository and the folder data - with all the documents generated during the evaluation.
+Same story at the answer level: the tuned weights produced more good answers (23/25 vs 19/25), confirming the production setup. Full details in [`04-evaluation-notebook.ipynb`](04-evaluation-notebook.ipynb) and the `data/` folder.
 
 ## Monitoring
 
-Every question asked in the app is logged to `monitoring.db`, along with:
+Every question asked in the app is logged to [`monitoring.db`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/monitoring.db), along with:
 - the LLM's response time, token usage, and cost
 - an LLM-as-a-judge relevance score for the answer
 - optional 👍/👎 feedback from the user
 
-The dashboard (`dashboard.py`) reads this data and shows cost, response time, and token usage over time, the judge's relevance scores, user feedback counts, and a list of recent conversations.
+The dashboard ([`dashboard.py`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/tree/main/pages)) reads this data and shows cost, response time, and token usage over time, the judge's relevance scores, user feedback counts, and a list of recent conversations.
+
+## What's in this repo 📁
+
+**[`data/`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/tree/main/data)** — data generated during evaluation, plus the vector search index:
+- [`ground_truth.csv`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/data/ground_truth.csv) — test questions + correct job
+- [`rag_answers.csv`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/data/rag_answers.csv) — assistant's answers during evaluation
+- [`rag_evaluations.csv`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/data/rag_evaluations.csv) — judge scores for those answers
+- [`csv_hash.txt`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/data/csv_hash.txt) — checksum, detects when to rebuild the vector index
+- [`vector_embeddings.npy`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/data/vector_embeddings.npy) — job listing embeddings (vector search)
+- [`vector_documents.json`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/data/vector_documents.json) — job listings text used for vector search
+
+**[`pages/`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/tree/main/pages)** — extra Streamlit pages (a separate window inside the app):
+- [`1_Monitoring_Dashboard.py`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/pages/1_Monitoring_Dashboard.py) — the monitoring dashboard
+
+**Running the app:**
+- [`ingest.py`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/ingest.py) — builds the keyword + vector search indexes
+- [`rag_helper.py`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/rag_helper.py) — search + RAG logic
+- [`assistant.py`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/assistant.py) — builds the ready-to-use assistant
+- [`metrics.py`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/metrics.py) — tracks cost, time, tokens per call
+- [`judge.py`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/judge.py) — LLM judge, grades answer relevance
+- [`app.py`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/app.py) — the Streamlit app
+
+**Monitoring backend:**
+- [`bigquery_client.py`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/bigquery_client.py) — connects to BigQuery (live app)
+- [`db_init.py`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/db_init.py) — creates `monitoring.db` tables (local)
+- [`db_save.py`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/db_save.py) — saves each conversation
+- [`db_feedback.py`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/db_feedback.py) — saves 👍/👎 and judge feedback
+- [`db_query.py`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/db_query.py) — reads data for the dashboard
+
+**Dataset:**
+- [`rag_jobs.csv`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/rag_jobs.csv) — full job listings dataset
+- [`rag_jobs_sample.csv`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/rag_jobs_sample.csv) — small 100-row preview
+- [`jobs.db`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/jobs.db) — keyword search index, built from `rag_jobs.csv`
+
+**Evaluation:**
+- [`evaluation_utils.py`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/evaluation_utils.py) — shared helper functions for evaluation
+- [`04-evaluation-notebook.ipynb`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/04-evaluation-notebook.ipynb) — full evaluation notebook
+- [`rag-test.ipynb`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/rag-test.ipynb) — early testing notebook
+
+**Setup / infra:**
+- [`Dockerfile`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/Dockerfile) — builds the app's Docker image
+- [`docker-compose.yaml`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/docker-compose.yaml) — runs the app + dashboard together
+- [`pyproject.toml`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/pyproject.toml) — project dependencies
+- [`uv.lock`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/uv.lock) — locked dependency versions
+
+**Other:**
+- [`monitoring.db`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/monitoring.db) — local monitoring data (SQLite)
+- [`PROJECT_NOTES.md`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/PROJECT_NOTES.md) — working notes, not user-facing
+- [`main.py`](https://github.com/benzaquenruth/data-analyst-jobs-RAG-assistant/blob/main/main.py) — default project file, not used
 
 ## Tech stack
 - **LLM + embeddings:** OpenAI (`gpt-5.4-mini` for answers, `text-embedding-3-small` for embeddings)

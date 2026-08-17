@@ -48,18 +48,24 @@ assistant = create_assistant()
 st.title("Data Analyst Job Seeker Assistant")
 
 st.markdown("""
-This project is built on top of real data analyst job postings scraped from Israel (LinkedIn, Indeed). Instead of scrolling through job boards yourself, you ask a question in plain English, and the assistant searches through the job postings and recommends the ones that actually match, explaining why.
+Curious what's happening in the Israeli data analyst job market? 👀  
+This assistant searches **real job postings from LinkedIn and Indeed**, collected daily through an automated [data pipeline](https://github.com/benzaquenruth/data_analyst_job_seeker_automation).
 
-It's a job matching and recommendation assistant, not a statistics tool — it can find and explain relevant jobs, but it won't answer dataset-level questions like "how many jobs are open in Tel Aviv" or "what's the average salary."
+📅 The current dataset covers jobs from **Feb 23, 2026 to Aug 6, 2026**.
+
+Ask about roles, skills, locations, seniority, or what jobs fit your background 🚀
+
+**It's a job-matching assistant, not a statistics tool!** it won't answer dataset-wide questions like *"How many jobs are open in Tel Aviv?"* 
 """)
 
 st.markdown("### Try one of these questions:")
 
 example_questions = [
-    "What data analyst jobs are available in Tel Aviv?",
-    "Any remote data analyst jobs?",
+    "Show me examples of positions someone with data engineering knowledge could apply for",
+    "What jobs would fit someone with experience in BigQuery, ETL pipelines, and data integration?",
     "Best matches for a data / business analyst background",
-    "Best maches for someone with SQL and python skills"
+    "Best maches for someone with SQL and python skills",
+    "For financial analyst-related roles, what skills, tools, and experience are employers looking for?"
 ]
 
 selected_question = None
@@ -147,7 +153,10 @@ if "last_answer" in st.session_state:
 # least once (i.e. once st.session_state.conversation_id exists) —
 # that's what "conversation_id" in st.session_state checks.
 st.divider()
-col1, col2 = st.columns(2)
+# Columns for the two buttons + an empty spacer column, so they sit
+# close together on the left instead of spread across the full width.
+# (wide enough that "Not helpful" doesn't wrap onto a second line)
+col1, col2, _ = st.columns([2, 2, 3])
 
 with col1:
     if st.button("👍 Helpful"):

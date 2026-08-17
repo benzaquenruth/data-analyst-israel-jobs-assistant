@@ -121,7 +121,7 @@ st.bar_chart(feedback_counts)
 # Each one is an expander: collapsed it just shows the question (click
 # to open), expanded it shows the full answer plus all the call details.
 st.subheader("Recent conversations")
-recent = get_conversations(limit=20)
+recent = get_conversations(limit=10)
 
 for c in recent:
     record = c["record"]
