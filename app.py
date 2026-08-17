@@ -47,16 +47,19 @@ assistant = create_assistant()
 
 st.title("Data Analyst Job Seeker Assistant")
 
+# unsafe_allow_html=True below only enables the one <a> tag for "data
+# pipeline" further down — everything else here is still plain markdown
+# (**bold**, emoji, etc.), that part is untouched.
 st.markdown("""
 Curious what's happening in the Israeli data analyst job market? 👀  
-This assistant searches **real job postings from LinkedIn and Indeed**, collected daily through an automated [data pipeline](https://github.com/benzaquenruth/data_analyst_job_seeker_automation).
+This assistant searches **real job postings from LinkedIn and Indeed**, collected daily through an automated <a href="https://github.com/benzaquenruth/data_analyst_job_seeker_automation" style="color: inherit; text-decoration: underline; font-style: italic;">data pipeline</a>.
 
 📅 The current dataset covers jobs from **Feb 23, 2026 to Aug 6, 2026**.
 
 Ask about roles, skills, locations, seniority, or what jobs fit your background 🚀
 
-**It's a job-matching assistant, not a statistics tool!** it won't answer dataset-wide questions like *"How many jobs are open in Tel Aviv?"* 
-""")
+**It's a job-matching assistant, not a statistics tool!** it won't answer dataset-wide questions like *"How many jobs are open in Tel Aviv?"*
+""", unsafe_allow_html=True)
 
 st.markdown("### Try one of these questions:")
 
@@ -65,7 +68,8 @@ example_questions = [
     "What jobs would fit someone with experience in BigQuery, ETL pipelines, and data integration?",
     "Best matches for a data / business analyst background",
     "Best maches for someone with SQL and python skills",
-    "For financial analyst-related roles, what skills, tools, and experience are employers looking for?"
+    "For financial analyst-related roles, what skills, tools, and experience are employers looking for?",
+    "Show me gaming company job postings and what they’re looking for"
 ]
 
 selected_question = None
@@ -76,10 +80,32 @@ for question in example_questions:
         st.session_state["question"] = question
         selected_question = question
 
+# 💡 tip that links to the "Recent conversations" section at the bottom of
+# the Monitoring dashboard page. It's a real HTML link (<a href=...>) —
+# that's what gives it the hand cursor on hover — the inline style just
+# strips the usual blue color/underline so it still reads as plain text.
+# "Monitoring_Dashboard" is the URL Streamlit gives pages/1_Monitoring_Dashboard.py,
+# and "#recent-conversations" is the anchor Streamlit auto-generates for the
+# st.subheader("Recent conversations") already at the bottom of that page.
+st.markdown(
+    '💡 <a href="Monitoring_Dashboard#recent-conversations" '
+    'style="color: inherit; text-decoration: none;">'
+    '<i>Curious what others asked? Check the latest Q&As on the Monitoring dashboard!</i></a>',
+    unsafe_allow_html=True,
+)
+st.write("")
+
+# A text_input's built-in label can't be made bigger (only bold via
+# markdown), so instead we print the label ourselves as a heading — headings
+# are bold by default and bigger than normal text — then hide the input's
+# own label (label_visibility="collapsed") so it doesn't show up twice.
+st.markdown("#### Ask about data analyst jobs in Israel:")
+
 # A single text box where the user types their question.
 user_input = st.text_input(
     "Ask about data analyst jobs in Israel:",
-    key="question"
+    key="question",
+    label_visibility="collapsed"
 )
 
 # This is the previus version of the text input, which we replaced with the one above.
